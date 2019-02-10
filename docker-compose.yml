@@ -1,0 +1,25 @@
+version: "3"
+
+services:
+  ravendb:
+    build: .
+    ports:
+      - 8080:8080
+      - 38888:38888
+    environment:
+      - RAVEN_ARGS=--log-to-console
+      - RAVEN_Setup_Mode=None
+      - RAVEN_License_Eula_Accepted=True
+      - RAVEN_ServerUrl=http://0.0.0.0:8080
+      - RAVEN_Security_UnsecuredAccessAllowed=PublicNetwork
+      - RAVEN_DataDir=RavenData
+      - RAVEN_License_Path=/opt/settings/license.json
+      - RAVEN_Features_Availability=Experimental
+    volumes:
+      - ./settings:/opt/settings
+      - ravendata:/opt/RavenDB/Server/RavenData
+    restart:
+      always
+
+volumes:
+  ravendata:
