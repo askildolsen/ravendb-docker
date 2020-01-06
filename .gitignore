@@ -1,2 +1,5 @@
+[Bb]in.tmp
+[Oo]bj.tmp
 .DS_Store
 license.json
+.vscode/*

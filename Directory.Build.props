@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>obj.tmp</BaseIntermediateOutputPath>
+    <OutputPath>bin.tmp</OutputPath>
+  </PropertyGroup>
+</Project>
