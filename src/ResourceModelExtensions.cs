@@ -29,7 +29,36 @@ namespace Digitalisert.Raven
             }
         }
 
-        public static IEnumerable<string> WKTEncodeGeohash(string wkt, int precision)
+        public static IEnumerable<string> WKTEncodeGeohash(string wkt)
+        {
+            foreach (var geohash in WKTEncodeGeohash(wkt, FindGeohashPrecision(wkt)))
+            {
+                yield return geohash;
+            }
+        }
+
+        private static int FindGeohashPrecision(string wkt)
+        {
+            var geometryEnvelope = new NetTopologySuite.IO.WKTReader().Read(wkt).EnvelopeInternal;
+            var geohasher = new Geohash.Geohasher();
+
+            foreach (var precision in Enumerable.Range(1, 7))
+            {
+                var geohash = geohasher.Encode(geometryEnvelope.Centre.Y, geometryEnvelope.Centre.X, precision);
+                var geohashsize = geohasher.GetBoundingBox(geohash);
+
+                var geohashEnvelope = new NetTopologySuite.Geometries.Envelope(geohashsize[2], geohashsize[3], geohashsize[0], geohashsize[1]);
+
+                if (geometryEnvelope.Covers(geohashEnvelope))
+                {
+                    return precision;
+                }
+            }
+
+            return 8;
+        }
+
+        private static IEnumerable<string> WKTEncodeGeohash(string wkt, int precision)
         {
             var geometry = new NetTopologySuite.IO.WKTReader().Read(wkt);
 
