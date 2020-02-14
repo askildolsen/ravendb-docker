@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Digitalisert.Raven
@@ -26,6 +27,15 @@ namespace Digitalisert.Raven
                         yield return property;
                     }
                 }
+            }
+        }
+
+        public static string GenerateHash(string str)
+        {
+            using (var md5Hasher = System.Security.Cryptography.MD5.Create())
+            {
+                var data = md5Hasher.ComputeHash(System.Text.Encoding.Default.GetBytes(str));
+                return Convert.ToBase64String(data).Substring(0,2);
             }
         }
 
