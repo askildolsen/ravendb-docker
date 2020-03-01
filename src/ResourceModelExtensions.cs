@@ -59,7 +59,7 @@ namespace Digitalisert.Raven
 
                 var geohashEnvelope = new NetTopologySuite.Geometries.Envelope(geohashsize[2], geohashsize[3], geohashsize[0], geohashsize[1]);
 
-                if (geometryEnvelope.Covers(geohashEnvelope))
+                if (geometryEnvelope.Width > geohashEnvelope.Width || geometryEnvelope.Height > geohashEnvelope.Height)
                 {
                     return precision;
                 }
