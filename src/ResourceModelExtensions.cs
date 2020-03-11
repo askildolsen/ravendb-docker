@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using NetTopologySuite.Geometries;
+using NetTopologySuite.IO;
+using ProjNet.CoordinateSystems;
+using ProjNet.CoordinateSystems.Transformations;
 
 namespace Digitalisert.Raven
 {
@@ -49,7 +53,7 @@ namespace Digitalisert.Raven
 
         private static int FindGeohashPrecision(string wkt)
         {
-            var geometryEnvelope = new NetTopologySuite.IO.WKTReader().Read(wkt).EnvelopeInternal;
+            var geometryEnvelope = new WKTReader().Read(wkt).EnvelopeInternal;
             var geohasher = new Geohash.Geohasher();
 
             foreach (var precision in Enumerable.Range(1, 7))
@@ -57,7 +61,7 @@ namespace Digitalisert.Raven
                 var geohash = geohasher.Encode(geometryEnvelope.Centre.Y, geometryEnvelope.Centre.X, precision);
                 var geohashsize = geohasher.GetBoundingBox(geohash);
 
-                var geohashEnvelope = new NetTopologySuite.Geometries.Envelope(geohashsize[2], geohashsize[3], geohashsize[0], geohashsize[1]);
+                var geohashEnvelope = new Envelope(geohashsize[2], geohashsize[3], geohashsize[0], geohashsize[1]);
 
                 if (geometryEnvelope.Width > geohashEnvelope.Width || geometryEnvelope.Height > geohashEnvelope.Height)
                 {
@@ -70,7 +74,7 @@ namespace Digitalisert.Raven
 
         private static IEnumerable<string> WKTEncodeGeohash(string wkt, int precision)
         {
-            var geometry = new NetTopologySuite.IO.WKTReader().Read(wkt);
+            var geometry = new WKTReader().Read(wkt);
 
             var geohasher = new Geohash.Geohasher();
             var geohashsize = geohasher.GetBoundingBox(geohasher.Encode(geometry.EnvelopeInternal.MinY, geometry.EnvelopeInternal.MinX, precision));
@@ -87,7 +91,7 @@ namespace Digitalisert.Raven
                     var geohash = geohasher.Encode(y, x, precision);
                     var geohashdecoded = geohasher.Decode(geohash);
 
-                    shapeFactory.Centre = new NetTopologySuite.Geometries.Coordinate(geohashdecoded.Item2, geohashdecoded.Item1);
+                    shapeFactory.Centre = new Coordinate(geohashdecoded.Item2, geohashdecoded.Item1);
 
                     if (shapeFactory.CreateRectangle().Intersects(geometry))
                     {
@@ -99,40 +103,52 @@ namespace Digitalisert.Raven
 
         public static bool WKTIntersects(string wkt1, string wkt2)
         {
-            var wktreader = new NetTopologySuite.IO.WKTReader();
+            var wktreader = new WKTReader();
             return wktreader.Read(wkt1).Intersects(wktreader.Read(wkt2));
+        }
+
+        public static string WKTBuffer(string wkt, int distance)
+        {
+            var geometry = new WKTReader().Read(wkt);
+            var geometryUTM = Transform(geometry, GeographicCoordinateSystem.WGS84, ProjectedCoordinateSystem.WGS84_UTM(33, true));
+
+            return Transform(geometryUTM.Buffer(distance), ProjectedCoordinateSystem.WGS84_UTM(33, true), GeographicCoordinateSystem.WGS84).ToString();
+        }
+
+        public static double WKTArea(string wkt)
+        {
+            var geometry = new WKTReader().Read(wkt);
+
+            return Transform(geometry, GeographicCoordinateSystem.WGS84, ProjectedCoordinateSystem.WGS84_UTM(33, true)).Area;
         }
 
         public static string WKTProjectToWGS84(string wkt, int fromsrid)
         {
-            var geometry = new NetTopologySuite.IO.WKTReader().Read(wkt);
+            var geometry = new WKTReader().Read(wkt);
 
-            ProjNet.CoordinateSystems.CoordinateSystem utm = ProjNet.CoordinateSystems.ProjectedCoordinateSystem.WGS84_UTM(33, true) as ProjNet.CoordinateSystems.CoordinateSystem;
-            ProjNet.CoordinateSystems.CoordinateSystem wgs84 = ProjNet.CoordinateSystems.GeographicCoordinateSystem.WGS84 as ProjNet.CoordinateSystems.CoordinateSystem;
-
-            var transformation = new ProjNet.CoordinateSystems.Transformations.CoordinateTransformationFactory().CreateFromCoordinateSystems(utm, wgs84);
-
-            return Digitalisert.Raven.ResourceModelExtensions.Transform(geometry, transformation.MathTransform).ToString();
+            return Transform(geometry, ProjectedCoordinateSystem.WGS84_UTM(33, true), GeographicCoordinateSystem.WGS84).ToString();
         }
 
-        private static NetTopologySuite.Geometries.Geometry Transform(this NetTopologySuite.Geometries.Geometry geometry, ProjNet.CoordinateSystems.Transformations.MathTransform mathTransform)
+        private static Geometry Transform(this Geometry geometry, CoordinateSystem from, CoordinateSystem to)
         {
+            var transformation = new CoordinateTransformationFactory().CreateFromCoordinateSystems(from, to);
+
             geometry = geometry.Copy();
-            geometry.Apply(new MathTransformFilter(mathTransform));
+            geometry.Apply(new MathTransformFilter(transformation.MathTransform));
             return geometry;
         }
 
-        private sealed class MathTransformFilter : NetTopologySuite.Geometries.ICoordinateSequenceFilter
+        private sealed class MathTransformFilter : ICoordinateSequenceFilter
         {
-            private readonly ProjNet.CoordinateSystems.Transformations.MathTransform _mathTransform;
+            private readonly MathTransform _mathTransform;
 
-            public MathTransformFilter(ProjNet.CoordinateSystems.Transformations.MathTransform mathTransform)
+            public MathTransformFilter(MathTransform mathTransform)
                 => _mathTransform = mathTransform;
 
             public bool Done => false;
             public bool GeometryChanged => true;
 
-            public void Filter(NetTopologySuite.Geometries.CoordinateSequence seq, int i)
+            public void Filter(CoordinateSequence seq, int i)
             {
                 (double x, double y, double z) = ((double, double, double))_mathTransform.Transform(seq.GetX(i), seq.GetY(i), seq.GetZ(i));
                 seq.SetX(i, x);
