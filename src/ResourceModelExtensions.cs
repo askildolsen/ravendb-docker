@@ -14,23 +14,34 @@ namespace Digitalisert.Raven
         {
             foreach(var propertyG in ((IEnumerable<dynamic>)properties).GroupBy(p => p.Name))
             {
-                if (propertyG.Any(p => p.Tags.Contains("@union")))
+                var name = propertyG.Key;
+                var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
+                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct();
+                var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct();
+
+                if (tags.Contains("@wkt"))
                 {
-                    yield
-                        return new {
-                            Name = propertyG.Key,
-                            Value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct(),
-                            Tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct(),
-                            Resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct(),
-                        };
-                }
-                else
-                {
-                    foreach(var property in propertyG.Distinct())
+                    var wktreader = new WKTReader();
+                    var geometries = value.Select(v => v.ToString()).Cast<string>().Select(v => wktreader.Read(v));
+
+                    if (geometries.Any(g => !g.IsValid))
                     {
-                        yield return property;
+                        tags = tags.Union(new[] { "@invalid" }).Distinct();
+                        geometries = geometries.Select(g => (g.IsValid) ? g : g.Buffer(0));
+                    }
+
+                    if (tags.Contains("@union"))
+                    {
+                        value = new[] { new NetTopologySuite.Operation.Union.UnaryUnionOp(geometries.ToList()).Union().ToString() };
                     }
                 }
+
+                yield return new {
+                    Name = name,
+                    Value = value,
+                    Tags = tags,
+                    Resources = resources,
+                };
             }
         }
 
