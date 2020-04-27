@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -43,6 +43,74 @@ namespace Digitalisert.Raven
                     Resources = resources,
                 };
             }
+        }
+
+        public static IEnumerable<dynamic> Properties(IEnumerable<dynamic> properties, dynamic resource)
+        {
+            foreach(var propertyG in ((IEnumerable<dynamic>)properties).GroupBy(p => p.Name))
+            {
+                var name = propertyG.Key;
+                var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value ?? new object[] { }).Distinct();
+                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags ?? new object[] { }).Distinct();
+                var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources ?? new object[] { }).Distinct();
+
+                yield return new {
+                    Name = name,
+                    Value = value.Select(v => ResourceFormat(v, resource)),
+                    Tags = tags,
+                    Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResource(r, resource)),
+                    Properties = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Properties ?? new object[] { }).Distinct()
+                };
+            }
+        }
+
+        private static IEnumerable<dynamic> PropertyResource(dynamic propertyresource, dynamic resource) {
+            var properties = Properties(propertyresource.Properties, resource);
+            var resourceIds = ((IEnumerable<dynamic>)properties).Where(p => p.Name == "@resourceId").SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
+
+            foreach(var resourceId in (resourceIds.Any() ? resourceIds.Where(id => !String.IsNullOrWhiteSpace(id)) : new[] { propertyresource.ResourceId })) {
+                yield return new {
+                    Context = (propertyresource.Context != null) ? propertyresource.Context : resource.Context,
+                    ResourceId = resourceId,
+                    Type = propertyresource.Type,
+                    Properties = properties
+                };
+            }
+        }
+
+        public static string ResourceFormat(string value, dynamic resource)
+        {
+            var formatter = SmartFormat.Smart.CreateDefaultSmartFormat();
+            formatter.Parser.AddAdditionalSelectorChars("æøå");
+
+            return formatter.Format(value, ResourceFormatData(resource));
+        }
+
+        private static Dictionary<string, object> ResourceFormatData(dynamic resource)
+        {
+            var resourceData = new Dictionary<string, object>() { 
+                { "Context", resource.Context ?? "" },
+                { "ResourceId", resource.ResourceId ?? "" },
+                { "Type", ((IEnumerable<dynamic>)resource.Type ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "SubType", ((IEnumerable<dynamic>)resource.SubType ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Title", ((IEnumerable<dynamic>)resource.Title ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "SubTitle", ((IEnumerable<dynamic>)resource.SubTitle ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Code", ((IEnumerable<dynamic>)resource.Code ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Status", ((IEnumerable<dynamic>)resource.Status ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Tags", ((IEnumerable<dynamic>)resource.Tags ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Properties", ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) }
+            };
+
+            foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
+                if (!property.Name.StartsWith("@")) {
+                    resourceData.Add(property.Name, new Dictionary<string, object>(){ 
+                        { "Value", ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToArray() },
+                        { "Resources", ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToArray() }
+                    });
+                }
+            }
+
+            return resourceData;
         }
 
         public static string GenerateHash(string str)
