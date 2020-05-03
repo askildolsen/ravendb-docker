@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.IO;
+using Newtonsoft.Json;
 using ProjNet.CoordinateSystems;
 using ProjNet.CoordinateSystems.Transformations;
 
@@ -45,37 +46,97 @@ namespace Digitalisert.Raven
             }
         }
 
-        public static IEnumerable<dynamic> Properties(IEnumerable<dynamic> properties, dynamic resource)
+        public static IEnumerable<dynamic> Properties(IEnumerable<dynamic> properties, dynamic resource, dynamic context)
         {
-            foreach(var propertyG in ((IEnumerable<dynamic>)properties).GroupBy(p => p.Name))
+            foreach(var property in PropertiesIterator(PropertiesData(properties), resource, context))
+            {
+                yield return property;
+            }
+        }
+
+        private static IEnumerable<dynamic> PropertiesIterator(IEnumerable<dynamic> properties, dynamic resource, dynamic context)
+        {
+            foreach(dynamic propertyG in properties.GroupBy(p => p.Name))
             {
                 var name = propertyG.Key;
-                var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value ?? new object[] { }).Distinct();
-                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags ?? new object[] { }).Distinct();
-                var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources ?? new object[] { }).Distinct();
+                var value = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Value ?? new object[] { }).Distinct();
+                var tags = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Tags ?? new object[] { }).Distinct();
+                var resources = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Resources ?? new object[] { }).Distinct();
+                var pProperties = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Properties ?? new object[] { }).Distinct();
 
                 yield return new {
                     Name = name,
                     Value = value.Select(v => ResourceFormat(v, resource)),
                     Tags = tags,
-                    Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResource(r, resource)),
-                    Properties = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Properties ?? new object[] { }).Distinct()
+                    Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResourceIterator(r, resource, context)),
+                    Properties = PropertiesIterator(pProperties, resource, context)
                 };
             }
         }
 
-        private static IEnumerable<dynamic> PropertyResource(dynamic propertyresource, dynamic resource) {
-            var properties = Properties(propertyresource.Properties, resource);
+        private static IEnumerable<dynamic> PropertyResourceIterator(dynamic propertyresource, dynamic resource, dynamic context) {
+            var properties = PropertiesIterator(propertyresource.Properties, resource, context);
             var resourceIds = ((IEnumerable<dynamic>)properties).Where(p => p.Name == "@resourceId").SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
 
             foreach(var resourceId in (resourceIds.Any() ? resourceIds.Where(id => !String.IsNullOrWhiteSpace(id)) : new[] { propertyresource.ResourceId })) {
                 yield return new {
-                    Context = (propertyresource.Context != null) ? propertyresource.Context : resource.Context,
-                    ResourceId = resourceId,
+                    Context = (!String.IsNullOrWhiteSpace(propertyresource.Context)) ? propertyresource.Context : context,
+                    ResourceId = (!String.IsNullOrWhiteSpace(resourceId)) ? resourceId : null,
                     Type = propertyresource.Type,
+                    Title = propertyresource.Title,
+                    Code = propertyresource.Code,
                     Properties = properties
                 };
             }
+        }
+
+        private static IEnumerable<dynamic> PropertiesData(IEnumerable<dynamic> properties)
+        {
+            foreach(dynamic property in properties)
+            {
+                var json = JsonConvert.SerializeObject(property);
+                var definition = new { Name = "", Value = new string[] { }, Tags = new string[] { }, Resources = new[] { new object[] {} }, Properties = new[] { new object[] {} } };
+                var result = JsonConvert.DeserializeAnonymousType(json, definition);
+
+                yield return new {
+                    Name = result.Name,
+                    Value = result.Value,
+                    Tags = result.Tags,
+                    Resources = ((IEnumerable<dynamic>)result.Resources).Select(r => ResourceData(r)),
+                    Properties = ((IEnumerable<dynamic>)result.Properties).Select(p => PropertyData(p))
+                };
+            }
+        }
+
+        private static dynamic PropertyData(dynamic property)
+        {
+            var json = JsonConvert.SerializeObject(property);
+            var definition = new[] { new { Key = "", Value = new object[] { } } };
+            IEnumerable<dynamic> result = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(json, definition);
+
+            return new {
+                Name = String.Join("", result.Where(r => r.Key == "Name").SelectMany(r => (IEnumerable<dynamic>)r.Value)),
+                Value = result.Where(r => r.Key == "Value").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => String.Join("", v)),
+                Tags = result.Where(r => r.Key == "Tags").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => String.Join("", v)),
+                Resources = result.Where(r => r.Key == "Resources").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => ResourceData(v)),
+                Properties = result.Where(r => r.Key == "Properties").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => PropertyData(v))
+            };
+        }
+
+        private static dynamic ResourceData(dynamic resource)
+        {
+            var json = Newtonsoft.Json.JsonConvert.SerializeObject(resource);
+            var definition = new[] { new { Key = "", Value = new object[] { } } };
+            IEnumerable<dynamic> result = Newtonsoft.Json.JsonConvert.DeserializeAnonymousType(json, definition);
+
+            return new {
+                Context = String.Join("", result.Where(r => r.Key == "Context").SelectMany(r => (IEnumerable<dynamic>)r.Value)),
+                ResourceId = String.Join("", result.Where(r => r.Key == "ResourceId").SelectMany(r => (IEnumerable<dynamic>)r.Value)),
+                Type = result.Where(r => r.Key == "Type").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => String.Join("", v)),
+                Title = result.Where(r => r.Key == "Title").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => String.Join("", v)),
+                Code = result.Where(r => r.Key == "Code").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => String.Join("", v)),
+                Properties = result.Where(r => r.Key == "Properties").SelectMany(r => (IEnumerable<dynamic>)r.Value).Select(v => PropertyData(v))
+            };
         }
 
         public static string ResourceFormat(string value, dynamic resource)
@@ -128,6 +189,22 @@ namespace Digitalisert.Raven
             {
                 yield return geohash;
             }
+        }
+
+        public static string WKTDecodeGeohash(string geohash)
+        {
+            var geohasher = new Geohash.Geohasher();
+            var geohashsize = geohasher.GetBoundingBox(geohash);
+            var shapeFactory = new NetTopologySuite.Utilities.GeometricShapeFactory();
+            shapeFactory.Height = geohashsize[1] - geohashsize[0];
+            shapeFactory.Width = geohashsize[3] - geohashsize[2];
+            shapeFactory.NumPoints = 4;
+
+            var geohashdecoded = geohasher.Decode(geohash);
+
+            shapeFactory.Centre = new Coordinate(geohashdecoded.Item2, geohashdecoded.Item1);
+            
+            return shapeFactory.CreateRectangle().ToString();
         }
 
         private static int FindGeohashPrecision(string wkt)
