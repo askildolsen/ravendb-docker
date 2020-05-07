@@ -164,11 +164,16 @@ namespace Digitalisert.Raven
             };
 
             foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
-                if (!property.Name.StartsWith("@")) {
-                    resourceData.Add(property.Name, new Dictionary<string, object>(){ 
-                        { "Value", ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToArray() },
-                        { "Resources", ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToArray() }
-                    });
+                if (!property.Name.StartsWith("@") && !resourceData.ContainsKey(property.Name)) {
+                    var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToList();
+                    var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
+                    
+                    if (value.Any() || resources.Any()) {
+                        resourceData.Add(property.Name, new Dictionary<string, object>() { 
+                            { "Value", value },
+                            { "Resources", resources }
+                        });
+                    }
                 }
             }
 
