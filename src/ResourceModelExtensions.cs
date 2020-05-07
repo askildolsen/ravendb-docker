@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -66,7 +66,7 @@ namespace Digitalisert.Raven
 
                 yield return new {
                     Name = name,
-                    Value = value.Select(v => ResourceFormat(v, resource)),
+                    Value = (name.StartsWith("@")) ? value : value.Select(v => ResourceFormat(v, resource)),
                     Tags = tags,
                     Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResourceIterator(r, resource, context)),
                     Properties = PropertiesIterator(pProperties, resource, context)
@@ -76,7 +76,8 @@ namespace Digitalisert.Raven
 
         private static IEnumerable<dynamic> PropertyResourceIterator(dynamic propertyresource, dynamic resource, dynamic context) {
             var properties = PropertiesIterator(propertyresource.Properties, resource, context);
-            var resourceIds = ((IEnumerable<dynamic>)properties).Where(p => p.Name == "@resourceId").SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
+            var resourceIdValues = ((IEnumerable<dynamic>)properties).Where(p => p.Name == "@resourceId").SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
+            var resourceIds = resourceIdValues.Select(v => ResourceFormat(v, resource));
 
             foreach(var resourceId in (resourceIds.Any() ? resourceIds.Where(id => !String.IsNullOrWhiteSpace(id)) : new[] { propertyresource.ResourceId })) {
                 yield return new {
