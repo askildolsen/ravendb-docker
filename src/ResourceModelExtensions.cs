@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -143,6 +143,7 @@ namespace Digitalisert.Raven
         {
             var formatter = SmartFormat.Smart.CreateDefaultSmartFormat();
             formatter.Parser.AddAdditionalSelectorChars("æøå");
+            formatter.Settings.FormatErrorAction = SmartFormat.Core.Settings.ErrorAction.Ignore;
 
             return formatter.Format(value, ResourceFormatData(resource));
         }
