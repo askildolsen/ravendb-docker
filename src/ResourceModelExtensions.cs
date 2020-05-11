@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -161,16 +161,20 @@ namespace Digitalisert.Raven
                 { "Code", ((IEnumerable<dynamic>)resource.Code ?? new object[] { }).Select(v => v.ToString()).ToArray() },
                 { "Status", ((IEnumerable<dynamic>)resource.Status ?? new object[] { }).Select(v => v.ToString()).ToArray() },
                 { "Tags", ((IEnumerable<dynamic>)resource.Tags ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "Properties", ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) }
+                { "Properties", new Dictionary<string, object>() }
             };
 
             foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
-                if (!property.Name.StartsWith("@") && !resourceData.ContainsKey(property.Name)) {
+                if (!property.Name.StartsWith("@")) {
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToList();
                     var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
-                    
-                    if (value.Any() || resources.Any()) {
-                        resourceData.Add(property.Name, new Dictionary<string, object>() { 
+
+                    if (value.Any() && !resourceData.ContainsKey(property.Name)) {
+                        resourceData.Add(property.Name, value);
+                    }
+
+                    if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(property.Name)) {
+                        ((Dictionary<string, object>)resourceData["Properties"]).Add(property.Name, new Dictionary<string, object>() { 
                             { "Value", value },
                             { "Resources", resources }
                         });
