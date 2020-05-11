@@ -264,6 +264,12 @@ namespace Digitalisert.Raven
             }
         }
 
+        public static string WKTEnvelope(string wkt)
+        {
+            var wktreader = new WKTReader();
+            return wktreader.Read(wkt).Envelope.ToString();
+        }
+
         public static bool WKTIntersects(string wkt1, string wkt2)
         {
             var wktreader = new WKTReader();
