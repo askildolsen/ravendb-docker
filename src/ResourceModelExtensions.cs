@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -272,6 +272,24 @@ namespace Digitalisert.Raven
         {
             var wktreader = new WKTReader();
             return wktreader.Read(wkt).Envelope.ToString();
+        }
+
+        public static IEnumerable<dynamic> WKTIntersectingProperty(IEnumerable<dynamic> wkts, IEnumerable<dynamic> properties)
+        {
+            var wktreader = new WKTReader();
+            var geometries = wkts.Select(v => wktreader.Read(v));
+
+            foreach (dynamic property in properties)
+            {
+                var result = JsonConvert.DeserializeAnonymousType(JsonConvert.SerializeObject(property), new { Value = new string[] { } });
+
+                var comparegeometries = ((IEnumerable<dynamic>)result.Value).Select(v => wktreader.Read(v));
+
+                if (geometries.Any(g => comparegeometries.Any(cg => g.Intersects(cg) )))
+                {
+                    yield return property;
+                }
+            }
         }
 
         public static bool WKTIntersects(string wkt1, string wkt2)
