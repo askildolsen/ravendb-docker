@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
+using NetTopologySuite.Geometries.Prepared;
 using NetTopologySuite.IO;
 using Newtonsoft.Json;
 using ProjNet.CoordinateSystems;
@@ -277,7 +278,8 @@ namespace Digitalisert.Raven
         public static IEnumerable<dynamic> WKTIntersectingProperty(IEnumerable<dynamic> wkts, IEnumerable<dynamic> properties)
         {
             var wktreader = new WKTReader();
-            var geometries = wkts.Select(v => wktreader.Read(v));
+            var factory = new PreparedGeometryFactory();
+            var geometries = wkts.Select(v => wktreader.Read(v)).Select(g => factory.Create(g)).ToList();
 
             foreach (dynamic property in properties)
             {
