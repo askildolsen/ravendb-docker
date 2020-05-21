@@ -170,8 +170,8 @@ namespace Digitalisert.Raven
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToList();
                     var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
 
-                    if (value.Any() && !resourceData.ContainsKey(property.Name)) {
-                        resourceData.Add(property.Name, value);
+                    if ((value.Any() || resources.Any()) && !resourceData.ContainsKey(property.Name)) {
+                        resourceData.Add(property.Name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"])).Distinct());
                     }
 
                     if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(property.Name)) {
