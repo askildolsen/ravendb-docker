@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using NetTopologySuite.Geometries;
@@ -67,7 +67,7 @@ namespace Digitalisert.Raven
 
                 yield return new {
                     Name = name,
-                    Value = (name.StartsWith("@")) ? value : value.Select(v => ResourceFormat(v, resource)),
+                    Value = (name.StartsWith("@")) ? value : value.SelectMany(v => (IEnumerable<dynamic>)ResourceFormat(v, resource)),
                     Tags = tags,
                     Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResourceIterator(r, resource, context)),
                     Properties = PropertiesIterator(pProperties, resource, context)
@@ -78,9 +78,9 @@ namespace Digitalisert.Raven
         private static IEnumerable<dynamic> PropertyResourceIterator(dynamic propertyresource, dynamic resource, dynamic context) {
             var properties = PropertiesIterator(propertyresource.Properties, resource, context);
             var resourceIdValues = ((IEnumerable<dynamic>)properties).Where(p => p.Name == "@resourceId").SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
-            var resourceIds = resourceIdValues.Select(v => ResourceFormat(v, resource).Split(new[] { '\n' })).SelectMany(v => (IEnumerable<dynamic>)v);
+            var resourceIds = resourceIdValues.SelectMany(v => (IEnumerable<dynamic>)ResourceFormat(v, resource));
 
-            foreach(var resourceId in (resourceIds.Any() ? resourceIds.Where(id => !String.IsNullOrWhiteSpace(id)) : new[] { propertyresource.ResourceId })) {
+            foreach(var resourceId in ((false || resourceIds.Any()) ? resourceIds.Where(id => !String.IsNullOrWhiteSpace(id)) : new[] { propertyresource.ResourceId })) {
                 yield return new {
                     Context = (!String.IsNullOrWhiteSpace(propertyresource.Context)) ? propertyresource.Context : context,
                     ResourceId = (!String.IsNullOrWhiteSpace(resourceId)) ? resourceId : null,
@@ -141,13 +141,13 @@ namespace Digitalisert.Raven
             };
         }
 
-        public static string ResourceFormat(string value, dynamic resource)
+        public static IEnumerable<string> ResourceFormat(string value, dynamic resource)
         {
             var formatter = SmartFormat.Smart.CreateDefaultSmartFormat();
             formatter.Parser.AddAdditionalSelectorChars("æøå");
             formatter.Settings.FormatErrorAction = SmartFormat.Core.Settings.ErrorAction.Ignore;
 
-            return formatter.Format(value, ResourceFormatData(resource));
+            return formatter.Format(value, ResourceFormatData(resource)).Split(new[] { '\n' } , StringSplitOptions.RemoveEmptyEntries);
         }
 
         private static Dictionary<string, object> ResourceFormatData(dynamic resource)
