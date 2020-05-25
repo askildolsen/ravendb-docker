@@ -57,20 +57,17 @@ namespace Digitalisert.Raven
 
         private static IEnumerable<dynamic> PropertiesIterator(IEnumerable<dynamic> properties, dynamic resource, dynamic context)
         {
-            foreach(dynamic propertyG in properties.GroupBy(p => p.Name))
+            foreach(dynamic property in properties)
             {
-                var name = propertyG.Key;
-                var value = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Value ?? new object[] { }).Distinct();
-                var tags = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Tags ?? new object[] { }).Distinct();
-                var resources = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Resources ?? new object[] { }).Distinct();
-                var pProperties = ((IGrouping<dynamic, dynamic>)propertyG).SelectMany(p => (IEnumerable<dynamic>)p.Properties ?? new object[] { }).Distinct();
+                IEnumerable<dynamic> value = property.Value ?? new object[] { };
+                IEnumerable<dynamic> resources = property.Resources ?? new object[] { };
 
                 yield return new {
-                    Name = name,
-                    Value = (name.StartsWith("@")) ? value : value.SelectMany(v => (IEnumerable<dynamic>)ResourceFormat(v, resource)),
-                    Tags = tags,
-                    Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResourceIterator(r, resource, context)),
-                    Properties = PropertiesIterator(pProperties, resource, context)
+                    Name = property.Name,
+                    Value = (property.Name.StartsWith("@")) ? value : value.SelectMany(v => (IEnumerable<dynamic>)ResourceFormat(v, resource)),
+                    Tags = property.Tags ?? new object[] { },
+                    Resources = resources.SelectMany(r => (IEnumerable<dynamic>)PropertyResourceIterator((dynamic)r, resource, context)),
+                    Properties = PropertiesIterator(property.Properties ?? new object[] { }, resource, context)
                 };
             }
         }
