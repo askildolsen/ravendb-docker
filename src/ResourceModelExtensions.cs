@@ -61,23 +61,23 @@ namespace Digitalisert.Raven
             var resourceData = new Dictionary<string, object>() { 
                 { "Context", resource.Context ?? "" },
                 { "ResourceId", resource.ResourceId ?? "" },
-                { "Type", ((IEnumerable<dynamic>)resource.Type ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "SubType", ((IEnumerable<dynamic>)resource.SubType ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "Title", ((IEnumerable<dynamic>)resource.Title ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "SubTitle", ((IEnumerable<dynamic>)resource.SubTitle ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "Code", ((IEnumerable<dynamic>)resource.Code ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "Status", ((IEnumerable<dynamic>)resource.Status ?? new object[] { }).Select(v => v.ToString()).ToArray() },
-                { "Tags", ((IEnumerable<dynamic>)resource.Tags ?? new object[] { }).Select(v => v.ToString()).ToArray() },
+                { "Type", ((IEnumerable<dynamic>)resource.Type ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "SubType", ((IEnumerable<dynamic>)resource.SubType ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "Title", ((IEnumerable<dynamic>)resource.Title ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "SubTitle", ((IEnumerable<dynamic>)resource.SubTitle ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "Code", ((IEnumerable<dynamic>)resource.Code ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "Status", ((IEnumerable<dynamic>)resource.Status ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
+                { "Tags", ((IEnumerable<dynamic>)resource.Tags ?? new object[] { }).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToArray() },
                 { "Properties", new Dictionary<string, object>() }
             };
 
             foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
                 if (!property.Name.StartsWith("@")) {
-                    var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).ToList();
+                    var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToList();
                     var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
 
                     if ((value.Any() || resources.Any()) && !resourceData.ContainsKey(property.Name)) {
-                        resourceData.Add(property.Name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"])).Distinct());
+                        resourceData.Add(property.Name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"]).Where(v => !String.IsNullOrWhiteSpace(v))).Distinct());
                     }
 
                     if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(property.Name)) {
