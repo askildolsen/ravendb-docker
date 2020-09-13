@@ -103,13 +103,20 @@ namespace Digitalisert.Raven
 
         public static IEnumerable<string> WKTEncodeGeohash(string wkt)
         {
-            foreach (var geohash in WKTEncodeGeohash(wkt, FindGeohashPrecision(wkt)))
+            var geometry = new WKTReader().Read(wkt);
+            var convexhull = new NetTopologySuite.Algorithm.ConvexHull(geometry).GetConvexHull();
+            foreach (var geohash in WKTEncodeGeohash(geometry, convexhull, FindGeohashPrecision(convexhull) + 1))
             {
                 yield return geohash;
             }
         }
 
         public static string WKTDecodeGeohash(string geohash)
+        {   
+            return WKTDecodeGeohashImpl(geohash).ToString();
+        }
+
+        private static Geometry WKTDecodeGeohashImpl(string geohash)
         {
             var geohasher = new Geohash.Geohasher();
             var geohashsize = geohasher.GetBoundingBox(geohash);
@@ -122,12 +129,12 @@ namespace Digitalisert.Raven
 
             shapeFactory.Centre = new Coordinate(geohashdecoded.Item2, geohashdecoded.Item1);
             
-            return shapeFactory.CreateRectangle().ToString();
+            return shapeFactory.CreateRectangle();
         }
 
-        private static int FindGeohashPrecision(string wkt)
+        private static int FindGeohashPrecision(Geometry geometry)
         {
-            var geometryEnvelope = new WKTReader().Read(wkt).EnvelopeInternal;
+            var geometryEnvelope = geometry.EnvelopeInternal;
             var geohasher = new Geohash.Geohasher();
 
             foreach (var precision in Enumerable.Range(1, 7))
@@ -146,30 +153,32 @@ namespace Digitalisert.Raven
             return 8;
         }
 
-        private static IEnumerable<string> WKTEncodeGeohash(string wkt, int precision)
+        private static IEnumerable<string> WKTEncodeGeohash(Geometry geometry, Geometry convexhull, int precision)
         {
-            var geometry = new WKTReader().Read(wkt);
+            var geometryPrepared = new PreparedGeometryFactory().Create(geometry);
+            var convexhullPrepared = new PreparedGeometryFactory().Create(convexhull);
 
             var geohasher = new Geohash.Geohasher();
-            var geohashsize = geohasher.GetBoundingBox(geohasher.Encode(geometry.EnvelopeInternal.MinY, geometry.EnvelopeInternal.MinX, precision));
+            var geohashbase = geohasher.Encode(convexhull.EnvelopeInternal.MinY, convexhull.EnvelopeInternal.MinX, precision);
+            var baserectangle = WKTDecodeGeohashImpl(geohashbase);
 
-            var shapeFactory = new NetTopologySuite.Utilities.GeometricShapeFactory();
-            shapeFactory.Height = geohashsize[1] - geohashsize[0];
-            shapeFactory.Width = geohashsize[3] - geohashsize[2];
-            shapeFactory.NumPoints = 4;
-
-            for (double y = geometry.EnvelopeInternal.MinY - shapeFactory.Height; y <= geometry.EnvelopeInternal.MaxY + shapeFactory.Height; y += shapeFactory.Height)
+            for (double y = convexhull.EnvelopeInternal.MinY - baserectangle.EnvelopeInternal.Height; y <= convexhull.EnvelopeInternal.MaxY + baserectangle.EnvelopeInternal.Height; y += baserectangle.EnvelopeInternal.Height)
             {
-                for (double x = geometry.EnvelopeInternal.MinX - shapeFactory.Width; x <= geometry.EnvelopeInternal.MaxX + shapeFactory.Width; x += shapeFactory.Width)
+                for (double x = convexhull.EnvelopeInternal.MinX - baserectangle.EnvelopeInternal.Width; x <= convexhull.EnvelopeInternal.MaxX + baserectangle.EnvelopeInternal.Width; x += baserectangle.EnvelopeInternal.Width)
                 {
                     var geohash = geohasher.Encode(y, x, precision);
-                    var geohashdecoded = geohasher.Decode(geohash);
+                    var rectangle = WKTDecodeGeohashImpl(geohash);
 
-                    shapeFactory.Centre = new Coordinate(geohashdecoded.Item2, geohashdecoded.Item1);
-
-                    if (shapeFactory.CreateRectangle().Intersects(geometry))
+                    if (convexhullPrepared.Intersects(rectangle))
                     {
-                        yield return geohash;
+                        if (geometryPrepared.Covers(rectangle))
+                        {
+                            yield return geohash + "+";
+                        }
+                        else if (geometryPrepared.Intersects(rectangle))
+                        {
+                            yield return geohash;
+                        }
                     }
                 }
             }
@@ -179,6 +188,12 @@ namespace Digitalisert.Raven
         {
             var wktreader = new WKTReader();
             return wktreader.Read(wkt).Envelope.ToString();
+        }
+
+        public static string WKTConvexHull(string wkt)
+        {
+            var wktreader = new WKTReader();
+            return new NetTopologySuite.Algorithm.ConvexHull(wktreader.Read(wkt)).GetConvexHull().ToString();
         }
 
         public static IEnumerable<dynamic> WKTIntersectingProperty(IEnumerable<dynamic> wkts, IEnumerable<dynamic> properties)
@@ -203,7 +218,9 @@ namespace Digitalisert.Raven
         public static bool WKTIntersects(string wkt1, string wkt2)
         {
             var wktreader = new WKTReader();
-            return wktreader.Read(wkt1).Intersects(wktreader.Read(wkt2));
+            var geometryPrepared = new PreparedGeometryFactory().Create(wktreader.Read(wkt1));
+
+            return geometryPrepared.Intersects(wktreader.Read(wkt2));
         }
 
         public static string WKTBuffer(string wkt, int distance)
