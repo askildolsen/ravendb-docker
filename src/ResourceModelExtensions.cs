@@ -105,7 +105,7 @@ namespace Digitalisert.Raven
         {
             var geometry = new WKTReader().Read(wkt);
             var convexhull = new NetTopologySuite.Algorithm.ConvexHull(geometry).GetConvexHull();
-            foreach (var geohash in WKTEncodeGeohash(geometry, convexhull, FindGeohashPrecision(convexhull) + 1))
+            foreach (var geohash in WKTEncodeGeohash(geometry, convexhull, FindGeohashPrecision(convexhull)))
             {
                 yield return geohash;
             }
@@ -171,13 +171,16 @@ namespace Digitalisert.Raven
 
                     if (convexhullPrepared.Intersects(rectangle))
                     {
-                        if (geometryPrepared.Covers(rectangle))
-                        {
-                            yield return geohash + "+";
-                        }
-                        else if (geometryPrepared.Intersects(rectangle))
+                        if (geometryPrepared.Intersects(rectangle))
                         {
                             yield return geohash;
+
+                            foreach(var subgeohash in geohasher.GetSubhashes(geohash))
+                            {
+                                if (geometryPrepared.Covers(WKTDecodeGeohashImpl(subgeohash))) {
+                                    yield return subgeohash + "+";
+                                }
+                            }
                         }
                     }
                 }
