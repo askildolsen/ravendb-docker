@@ -175,10 +175,17 @@ namespace Digitalisert.Raven
                         {
                             yield return geohash;
 
-                            foreach(var subgeohash in geohasher.GetSubhashes(geohash))
+                            if (geometryPrepared.Covers(rectangle))
                             {
-                                if (geometryPrepared.Covers(WKTDecodeGeohashImpl(subgeohash))) {
-                                    yield return subgeohash + "+";
+                                yield return geohash + "++";
+                            }
+                            else
+                            {
+                                foreach(var subgeohash in geohasher.GetSubhashes(geohash))
+                                {
+                                    if (geometryPrepared.Covers(WKTDecodeGeohashImpl(subgeohash))) {
+                                        yield return subgeohash + "+";
+                                    }
                                 }
                             }
                         }
