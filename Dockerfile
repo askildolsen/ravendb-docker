@@ -1,4 +1,4 @@
-FROM ravendb/ravendb:5.0.2-ubuntu.18.04-x64
+FROM ravendb/ravendb:5.0.3-ubuntu.18.04-x64
 
 RUN apt-get update \
     && apt-get install -y \
