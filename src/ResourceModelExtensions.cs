@@ -73,15 +73,16 @@ namespace Digitalisert.Raven
 
             foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
                 if (!property.Name.StartsWith("@")) {
+                    var name = property.Name.Replace(" ", "_");
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToList();
                     var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
 
-                    if ((value.Any() || resources.Any()) && !resourceData.ContainsKey(property.Name)) {
-                        resourceData.Add(property.Name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"]).Where(v => !String.IsNullOrWhiteSpace(v))).Distinct());
+                    if ((value.Any() || resources.Any()) && !resourceData.ContainsKey(name)) {
+                        resourceData.Add(name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"]).Where(v => !String.IsNullOrWhiteSpace(v))).Distinct());
                     }
 
-                    if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(property.Name)) {
-                        ((Dictionary<string, object>)resourceData["Properties"]).Add(property.Name, new Dictionary<string, object>() { 
+                    if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(name)) {
+                        ((Dictionary<string, object>)resourceData["Properties"]).Add(name, new Dictionary<string, object>() { 
                             { "Value", value },
                             { "Resources", resources }
                         });
