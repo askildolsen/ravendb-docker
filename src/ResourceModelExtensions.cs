@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using MoreLinq.Extensions;
 using NetTopologySuite.Geometries;
 using NetTopologySuite.Geometries.Prepared;
 using NetTopologySuite.IO;
@@ -16,34 +17,59 @@ namespace Digitalisert.Raven
         {
             foreach(var propertyG in ((IEnumerable<dynamic>)properties).GroupBy(p => p.Name))
             {
-                var name = propertyG.Key;
-                var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
-                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct();
-                var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct();
+                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct().Except(new[] { "@first", "@last" });
 
-                if (tags.Contains("@wkt"))
+                if (tags.Contains("@history"))
                 {
-                    var wktreader = new WKTReader();
-                    var geometries = value.Select(v => v.ToString()).Cast<string>().Select(v => wktreader.Read(v));
+                    IEnumerable<dynamic> history = propertyG.OrderBy(h => (h.From != null) ? h.From : DateTime.MinValue).ThenBy(h => (h.Thru) != null ? h.Thru : DateTime.MaxValue);
+                    var groups = history.GroupAdjacent(h => new { h.Value, h.Resources }).Select((g, i) => new { g, i });
 
-                    if (geometries.Any(g => !g.IsValid))
+                    foreach(var group in groups)
                     {
-                        tags = tags.Union(new[] { "@invalid" }).Distinct();
-                        geometries = geometries.Select(g => (g.IsValid) ? g : g.Buffer(0));
-                    }
+                        var prev = groups.Where(gr => gr.i == group.i - 1).SelectMany(gr => gr.g).Select(p => p.Thru).Where(t => t != null).Max();
+                        var next = groups.Where(gr => gr.i == group.i + 1).SelectMany(gr => gr.g).Select(p => p.From).Where(t => t != null).Min();
+                        var from = group.g.Select(p => p.From).Where(f => f != null);
+                        var thru = group.g.Select(p => p.Thru).Where(t => t != null);
+                        var source = group.g.SelectMany(g => (IEnumerable<dynamic>)g.Source);
 
-                    if (tags.Contains("@union"))
-                    {
-                        value = new[] { new NetTopologySuite.Operation.Union.UnaryUnionOp(geometries.ToList()).Union().ToString() };
+                        yield return new {
+                            Name = propertyG.Key,
+                            Value = (group.g.Key.Value != null) ? group.g.Key.Value : new string[] { },
+                            Tags = tags.Union(new[] { (group.i == 0) ? "@first" : "", (group.i == groups.Count() - 1) ? "@last" : "" } ).Where(t => !String.IsNullOrWhiteSpace(t)),
+                            From = (from.Any(f => f != prev)) ? from.Where(f => f != prev).Min() : prev,
+                            Thru = (thru.Any(t => t != next)) ? thru.Where(t => t != next).Max() : next,
+                            Source = new[] { source.FirstOrDefault(), source.LastOrDefault() }.Distinct()
+                        };
                     }
                 }
+                else {
+                    var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
+                    var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct();
 
-                yield return new {
-                    Name = name,
-                    Value = value,
-                    Tags = tags,
-                    Resources = resources,
-                };
+                    if (tags.Contains("@wkt"))
+                    {
+                        var wktreader = new WKTReader();
+                        var geometries = value.Select(v => v.ToString()).Cast<string>().Select(v => wktreader.Read(v));
+
+                        if (geometries.Any(g => !g.IsValid))
+                        {
+                            tags = tags.Union(new[] { "@invalid" }).Distinct();
+                            geometries = geometries.Select(g => (g.IsValid) ? g : g.Buffer(0));
+                        }
+
+                        if (tags.Contains("@union"))
+                        {
+                            value = new[] { new NetTopologySuite.Operation.Union.UnaryUnionOp(geometries.ToList()).Union().ToString() };
+                        }
+                    }
+
+                    yield return new {
+                        Name = propertyG.Key,
+                        Value = value,
+                        Tags = tags,
+                        Resources = resources,
+                    };
+                }
             }
         }
 
