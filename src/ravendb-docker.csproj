@@ -8,9 +8,10 @@
   <ItemGroup>
       <PackageReference Include="geohash-dotnet" Version="1.0.4" />
       <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+      <PackageReference Include="morelinq" Version="3.3.2" />
       <PackageReference Include="NetTopologySuite" Version="2.1.0" />
       <PackageReference Include="ProjNET" Version="2.0.0" />
-      <PackageReference Include="SmartFormat.NET" Version="2.5.2" />
+      <PackageReference Include="SmartFormat.NET" Version="2.5.3" />
   </ItemGroup>
 
 </Project>

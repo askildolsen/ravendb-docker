@@ -1,4 +1,4 @@
-FROM ravendb/ravendb:5.0.3-ubuntu.18.04-x64
+FROM ravendb/ravendb:5.0.6-ubuntu.18.04-x64
 
 RUN apt-get update \
     && apt-get install -y \
@@ -16,7 +16,7 @@ RUN unzip -j /ProjNET.zip lib/netstandard2.0/ProjNET.dll -d /opt/RavenDB/Server
 ADD https://www.nuget.org/api/v2/package/geohash-dotnet/1.0.4 /geohash-dotnet.zip
 RUN unzip -j /geohash-dotnet.zip lib/netstandard2.0/Geohash.dll -d /opt/RavenDB/Server
 
-ADD https://www.nuget.org/api/v2/package/SmartFormat.NET/2.5.2 /smartformat.net.zip
+ADD https://www.nuget.org/api/v2/package/SmartFormat.NET/2.5.3 /smartformat.net.zip
 RUN unzip -j /smartformat.net.zip lib/netstandard2.0/SmartFormat.dll -d /opt/RavenDB/Server
 
 COPY src/bin.tmp/netstandard2.0/ravendb-docker.dll /opt/RavenDB/Server/ravendb-docker.dll
