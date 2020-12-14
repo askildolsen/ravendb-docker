@@ -77,7 +77,7 @@ namespace Digitalisert.Raven
         public static IEnumerable<string> ResourceFormat(string value, dynamic resource, dynamic resourceproperty = null)
         {
             var formatter = SmartFormat.Smart.CreateDefaultSmartFormat();
-            formatter.Parser.AddAdditionalSelectorChars("æøå");
+            formatter.Parser.AddAdditionalSelectorChars("æøåÆØÅ");
             formatter.Settings.FormatErrorAction = SmartFormat.Core.Settings.ErrorAction.Ignore;
 
             return formatter.Format(value, ResourceFormatData(resource, resourceproperty)).Split(new[] { '\n' } , StringSplitOptions.RemoveEmptyEntries);
