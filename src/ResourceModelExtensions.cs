@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using MoreLinq.Extensions;
@@ -74,16 +74,16 @@ namespace Digitalisert.Raven
             }
         }
 
-        public static IEnumerable<string> ResourceFormat(string value, dynamic resource)
+        public static IEnumerable<string> ResourceFormat(string value, dynamic resource, dynamic resourceproperty = null)
         {
             var formatter = SmartFormat.Smart.CreateDefaultSmartFormat();
             formatter.Parser.AddAdditionalSelectorChars("æøå");
             formatter.Settings.FormatErrorAction = SmartFormat.Core.Settings.ErrorAction.Ignore;
 
-            return formatter.Format(value, ResourceFormatData(resource)).Split(new[] { '\n' } , StringSplitOptions.RemoveEmptyEntries);
+            return formatter.Format(value, ResourceFormatData(resource, resourceproperty)).Split(new[] { '\n' } , StringSplitOptions.RemoveEmptyEntries);
         }
 
-        private static Dictionary<string, object> ResourceFormatData(dynamic resource)
+        private static Dictionary<string, object> ResourceFormatData(dynamic resource, dynamic resourceproperty = null)
         {
             var resourceData = new Dictionary<string, object>() { 
                 { "Context", resource.Context ?? "" },
@@ -98,7 +98,7 @@ namespace Digitalisert.Raven
                 { "Properties", new Dictionary<string, object>() }
             };
 
-            foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }) ) {
+            foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }).Union(((IEnumerable<dynamic>)resource.Properties ?? new object[] { })) ) {
                 if (!property.Name.StartsWith("@")) {
                     var name = property.Name.Replace(" ", "_");
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToList();
