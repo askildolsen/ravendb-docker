@@ -103,11 +103,14 @@ namespace Digitalisert.Raven
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToList();
                     var resources = ((IEnumerable<dynamic>)property.Resources ?? new object[] {}).Select(r => ResourceFormatData(r)).ToList();
 
-                    if (value.Any() && value.All(v => Int32.TryParse(v.ToString(), out int _test))) {
-                        resourceData.Add(name, value.Select(v => Int32.Parse(v)));
-                    }
-                    else if ((value.Any() || resources.Any()) && !resourceData.ContainsKey(name)) {
-                        resourceData.Add(name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"]).Where(v => !String.IsNullOrWhiteSpace(v))).Distinct());
+                    if (!resourceData.ContainsKey(name))
+                    {
+                        if (value.Any() && value.All(v => Int32.TryParse(v.ToString(), out int _test))) {
+                            resourceData.Add(name, value.Select(v => Int32.Parse(v)));
+                        }
+                        else if ((value.Any() || resources.Any())) {
+                            resourceData.Add(name, value.Union(resources.SelectMany(r => (IEnumerable<dynamic>)r["Title"]).Where(v => !String.IsNullOrWhiteSpace(v))).Distinct());
+                        }
                     }
 
                     if ((value.Any() || resources.Any()) && !((Dictionary<string, object>)resourceData["Properties"]).ContainsKey(name)) {
