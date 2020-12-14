@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MoreLinq.Extensions;
@@ -98,7 +98,7 @@ namespace Digitalisert.Raven
                 { "Properties", new Dictionary<string, object>() }
             };
 
-            foreach(var property in ((IEnumerable<dynamic>)resource.Properties ?? new object[] { }).Union(((IEnumerable<dynamic>)resource.Properties ?? new object[] { })) ) {
+            foreach(var property in ((IEnumerable<dynamic>)resourceproperty ?? new object[] { }).Union(((IEnumerable<dynamic>)resource.Properties ?? new object[] { })) ) {
                 if (!property.Name.StartsWith("@")) {
                     var name = property.Name.Replace(" ", "_");
                     var value = ((IEnumerable<dynamic>)property.Value ?? new object[] {}).Select(v => v.ToString()).Where(v => !String.IsNullOrWhiteSpace(v)).ToList();
