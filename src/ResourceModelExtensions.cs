@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using MoreLinq.Extensions;
@@ -17,9 +17,35 @@ namespace Digitalisert.Raven
         {
             foreach(var propertyG in ((IEnumerable<dynamic>)properties).GroupBy(p => p.Name))
             {
-                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct().Except(new[] { "@first", "@last" });
+                var tags = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Tags).Distinct().Select(t => t.ToString()).Except(new[] { "@first", "@last" });
+                var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
 
-                if (tags.Contains("@history"))
+                if (tags.Intersect(new[] { "@sum", "@min", "@max", "@average" }).Any())
+                {
+                    var integers = value.Where(v => int.TryParse(v.ToString(), out int _test)).Select(v => (int)int.Parse(v.ToString()));
+                    if (tags.Contains("@sum")) {
+                        yield return new {
+                            Name = propertyG.Key,
+                            Value = new[] { integers.Sum().ToString() }
+                        };
+                    } else if (tags.Contains("@average")) {
+                        yield return new {
+                            Name = propertyG.Key,
+                            Value = new[] { integers.Average().ToString() }
+                        };
+                    } else if (tags.Contains("@min")) {
+                        yield return new {
+                            Name = propertyG.Key,
+                            Value = new[] { integers.Min().ToString() }
+                        };
+                    } else if (tags.Contains("@max")) {
+                        yield return new {
+                            Name = propertyG.Key,
+                            Value = new[] { integers.Max().ToString() }
+                        };
+                    }
+                }
+                else if (tags.Contains("@history"))
                 {
                     IEnumerable<dynamic> history = propertyG.OrderBy(h => (h.From != null) ? h.From : DateTime.MinValue).ThenBy(h => (h.Thru) != null ? h.Thru : DateTime.MaxValue);
                     var groups = history.GroupAdjacent(h => new { h.Value, h.Resources }).Select((g, i) => new { g, i });
@@ -44,7 +70,6 @@ namespace Digitalisert.Raven
                     }
                 }
                 else {
-                    var value = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Value).Distinct();
                     var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct();
 
                     if (tags.Contains("@wkt"))
