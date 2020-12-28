@@ -70,8 +70,6 @@ namespace Digitalisert.Raven
                     }
                 }
                 else {
-                    var resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct();
-
                     if (tags.Contains("@wkt"))
                     {
                         var wktreader = new WKTReader();
@@ -93,7 +91,8 @@ namespace Digitalisert.Raven
                         Name = propertyG.Key,
                         Value = value,
                         Tags = tags,
-                        Resources = resources,
+                        Resources = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Resources).Distinct(),
+                        Properties = propertyG.SelectMany(p => (IEnumerable<dynamic>)p.Properties).Distinct()
                     };
                 }
             }
