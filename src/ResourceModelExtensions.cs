@@ -162,8 +162,7 @@ namespace Digitalisert.Raven
         public static IEnumerable<string> WKTEncodeGeohash(string wkt)
         {
             var geometry = new WKTReader().Read(wkt);
-            var convexhull = new NetTopologySuite.Algorithm.ConvexHull(geometry).GetConvexHull();
-            foreach (var geohash in WKTEncodeGeohash(geometry, convexhull, FindGeohashPrecision(convexhull)))
+            foreach (var geohash in WKTEncodeGeohash(geometry, FindGeohashPrecision(geometry)))
             {
                 yield return geohash;
             }
@@ -211,42 +210,24 @@ namespace Digitalisert.Raven
             return 8;
         }
 
-        private static IEnumerable<string> WKTEncodeGeohash(Geometry geometry, Geometry convexhull, int precision)
+        private static IEnumerable<string> WKTEncodeGeohash(Geometry geometry, int precision)
         {
             var geometryPrepared = new PreparedGeometryFactory().Create(geometry);
-            var convexhullPrepared = new PreparedGeometryFactory().Create(convexhull);
 
             var geohasher = new Geohash.Geohasher();
-            var geohashbase = geohasher.Encode(convexhull.EnvelopeInternal.MinY, convexhull.EnvelopeInternal.MinX, precision);
+            var geohashbase = geohasher.Encode(geometry.EnvelopeInternal.MinY, geometry.EnvelopeInternal.MinX, precision);
             var baserectangle = WKTDecodeGeohashImpl(geohashbase);
 
-            for (double y = convexhull.EnvelopeInternal.MinY - baserectangle.EnvelopeInternal.Height; y <= convexhull.EnvelopeInternal.MaxY + baserectangle.EnvelopeInternal.Height; y += baserectangle.EnvelopeInternal.Height)
+            for (double y = geometry.EnvelopeInternal.MinY - baserectangle.EnvelopeInternal.Height; y <= geometry.EnvelopeInternal.MaxY + baserectangle.EnvelopeInternal.Height; y += baserectangle.EnvelopeInternal.Height)
             {
-                for (double x = convexhull.EnvelopeInternal.MinX - baserectangle.EnvelopeInternal.Width; x <= convexhull.EnvelopeInternal.MaxX + baserectangle.EnvelopeInternal.Width; x += baserectangle.EnvelopeInternal.Width)
+                for (double x = geometry.EnvelopeInternal.MinX - baserectangle.EnvelopeInternal.Width; x <= geometry.EnvelopeInternal.MaxX + baserectangle.EnvelopeInternal.Width; x += baserectangle.EnvelopeInternal.Width)
                 {
                     var geohash = geohasher.Encode(y, x, precision);
                     var rectangle = WKTDecodeGeohashImpl(geohash);
 
-                    if (convexhullPrepared.Intersects(rectangle))
+                    if (geometryPrepared.Intersects(rectangle))
                     {
-                        if (geometryPrepared.Intersects(rectangle))
-                        {
-                            yield return geohash;
-
-                            if (geometryPrepared.Covers(rectangle))
-                            {
-                                yield return geohash + "++";
-                            }
-                            else
-                            {
-                                foreach(var subgeohash in geohasher.GetSubhashes(geohash))
-                                {
-                                    if (geometryPrepared.Covers(WKTDecodeGeohashImpl(subgeohash))) {
-                                        yield return subgeohash + "+";
-                                    }
-                                }
-                            }
-                        }
+                        yield return geohash;
                     }
                 }
             }
