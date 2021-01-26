@@ -26,22 +26,26 @@ namespace Digitalisert.Raven
                     if (tags.Contains("@sum")) {
                         yield return new {
                             Name = propertyG.Key,
-                            Value = new[] { integers.Sum().ToString() }
+                            Value = new[] { integers.Sum().ToString() },
+                            Tags = tags
                         };
                     } else if (tags.Contains("@average")) {
                         yield return new {
                             Name = propertyG.Key,
-                            Value = new[] { integers.Average().ToString() }
+                            Value = new[] { integers.Average().ToString() },
+                            Tags = tags,
                         };
                     } else if (tags.Contains("@min")) {
                         yield return new {
                             Name = propertyG.Key,
-                            Value = new[] { integers.Min().ToString() }
+                            Value = new[] { integers.Min().ToString() },
+                            Tags = tags,
                         };
                     } else if (tags.Contains("@max")) {
                         yield return new {
                             Name = propertyG.Key,
-                            Value = new[] { integers.Max().ToString() }
+                            Value = new[] { integers.Max().ToString() },
+                            Tags = tags
                         };
                     }
                 }
