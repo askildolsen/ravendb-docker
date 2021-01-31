@@ -166,9 +166,42 @@ namespace Digitalisert.Raven
         public static IEnumerable<string> WKTEncodeGeohash(string wkt)
         {
             var geometry = new WKTReader().Read(wkt);
-            foreach (var geohash in WKTEncodeGeohash(geometry, FindGeohashPrecision(geometry)))
+            var geometryPrepared = new PreparedGeometryFactory().Create(geometry);
+            var convexhull = new NetTopologySuite.Algorithm.ConvexHull(geometry).GetConvexHull();
+            var geohasher = new Geohash.Geohasher();
+
+            foreach (var geohash in WKTEncodeGeohash(convexhull, FindGeohashPrecision(convexhull)))
             {
-                yield return geohash;
+                var rectangle = WKTDecodeGeohashImpl(geohash);
+                var base32Chars = "0123456789bcdefghjkmnpqrstuvwxyz".ToCharArray();
+
+                if (geometryPrepared.Intersects(rectangle))
+                {
+                    if (geometryPrepared.Covers(rectangle))
+                    {
+                        yield return geohash + "|" + base32Chars + "|" + base32Chars;
+                    }
+                    else
+                    {
+                        var subhashintersects = new List<char>();
+                        var subhashcovers = new List<char>();
+                        foreach (var subgeohash in base32Chars)
+                        {
+                            var subrectangle = WKTDecodeGeohashImpl(geohash + subgeohash);
+
+                            if (geometryPrepared.Covers(subrectangle))
+                            {
+                                subhashintersects.Add(subgeohash);
+                                subhashcovers.Add(subgeohash);
+                            }
+                            else if (geometryPrepared.Intersects(subrectangle))
+                            {
+                                subhashintersects.Add(subgeohash);
+                            }
+                        }
+                        yield return geohash + "|" + String.Join("", subhashintersects) + "|" + String.Join("", subhashcovers);
+                    }
+                }
             }
         }
 
