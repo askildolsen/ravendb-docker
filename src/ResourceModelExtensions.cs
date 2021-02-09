@@ -173,7 +173,7 @@ namespace Digitalisert.Raven
             foreach (var geohash in WKTEncodeGeohash(convexhull, FindGeohashPrecision(convexhull)))
             {
                 var rectangle = WKTDecodeGeohashImpl(geohash);
-                var base32Chars = "0123456789bcdefghjkmnpqrstuvwxyz".ToCharArray();
+                var base32Chars = "0123456789bcdefghjkmnpqrstuvwxyz";
 
                 if (geometryPrepared.Intersects(rectangle))
                 {
@@ -185,7 +185,7 @@ namespace Digitalisert.Raven
                     {
                         var subhashintersects = new List<char>();
                         var subhashcovers = new List<char>();
-                        foreach (var subgeohash in base32Chars)
+                        foreach (var subgeohash in base32Chars.ToCharArray())
                         {
                             var subrectangle = WKTDecodeGeohashImpl(geohash + subgeohash);
 
