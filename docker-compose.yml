@@ -15,6 +15,7 @@ services:
       - RAVEN_DataDir=RavenData
       - RAVEN_License_Path=/opt/settings/license.json
       - RAVEN_Features_Availability=Experimental
+      - RAVEN_Indexing_MaxNumberOfConcurrentlyRunningIndexes=2
     volumes:
       - ./settings:/opt/settings
       - ravendata:/opt/RavenDB/Server/RavenData
